@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Hub 2026</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        .hidden { display: none; }
+        .hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 0; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <div class="hero text-center mb-4">
+        <h1 id="main-title">Iscrizione Evento</h1>
+        <p>Sistema Digitale Presenze</p>
+    </div>
+
+    <div class="container">
+        <div id="section-iscrizione" class="card p-4 shadow-sm mx-auto" style="max-width: 500px;">
+            <input type="text" id="nome" class="form-control mb-2" placeholder="Nome">
+            <input type="text" id="cognome" class="form-control mb-2" placeholder="Cognome">
+            <input type="email" id="email" class="form-control mb-2" placeholder="Email">
+            <button onclick="inviaDati('iscrizione')" class="btn btn-primary w-100">Registrati</button>
+            <hr>
+            <button onclick="mostraSezione('checkin')" class="btn btn-outline-secondary btn-sm">Vai a Check-in</button>
+        </div>
+
+        <div id="section-checkin" class="card p-4 shadow-sm mx-auto hidden" style="max-width: 500px;">
+            <h3 class="text-center">Conferma Presenza</h3>
+            <input type="email" id="email-check" class="form-control mb-2" placeholder="La tua email">
+            <button onclick="inviaDati('checkin')" class="btn btn-success w-100">Sono in aula</button>
+        </div>
+
+        <div id="section-admin" class="card p-4 shadow-sm hidden">
+            <h3>Pannello di Controllo</h3>
+            <div id="admin-data" class="table-responsive"></div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "INSERISCI_QUI_URL_GOOGLE_APPS_SCRIPT";
+
+        function mostraSezione(id) {
+            document.querySelectorAll('.container > div').forEach(div => div.classList.add('hidden'));
+            document.getElementById('section-' + id).classList.remove('hidden');
+            if(id === 'admin') caricaAdmin();
+        }
+
+        async function inviaDati(azione) {
+            const payload = {
+                action: azione,
+                nome: document.getElementById('nome').value,
+                cognome: document.getElementById('cognome').value,
+                email: azione === 'iscrizione' ? document.getElementById('email').value : document.getElementById('email-check').value
+            };
+
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            alert("Operazione completata!");
+        }
+
+        async function caricaAdmin() {
+            const res = await fetch(SCRIPT_URL);
+            const data = await res.json();
+            let html = '<table class="table"><thead><tr><th>Nome</th><th>Presente</th><th>Azione</th></tr></thead><tbody>';
+            data.slice(1).forEach(row => {
+                html += `<tr>
+                    <td>${row[0]} ${row[1]}</td>
+                    <td>${row[4]}</td>
+                    <td>${row[4] === 'Sì' ? `<button onclick="generaPDF('${row[0]}','${row[1]}')" class="btn btn-sm btn-info">Certificato</button>` : ''}</td>
+                </tr>`;
+            });
+            document.getElementById('admin-data').innerHTML = html + '</tbody></table>';
+        }
+
+        function generaPDF(n, c) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l');
+            doc.setFontSize(40);
+            doc.text("ATTESTATO", 148, 50, {align: 'center'});
+            doc.setFontSize(20);
+            doc.text(`Si certifica che ${n} ${c}`, 148, 80, {align: 'center'});
+            doc.save(`Attestato_${c}.pdf`);
+        }
+
+        // Controllo accesso admin tramite parametro URL semplice ?view=admin
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('view') === 'admin') mostraSezione('admin');
+        if(urlParams.get('view') === 'checkin') mostraSezione('checkin');
+    </script>
+</body>
+</html>
